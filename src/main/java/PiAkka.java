@@ -5,16 +5,12 @@ import akka.actor.UntypedActor;
 import akka.actor.UntypedActorFactory;
 import akka.routing.RoundRobinRouter;
 import scala.concurrent.duration.Duration;
+
+import java.math.BigDecimal;
 import java.util.concurrent.TimeUnit;
 
 
 public class PiAkka implements PiCalculator{
-
-    public static void main(String[] args) {
-        PiAkka pi = new PiAkka();
-        pi.calculate(5, 15000, 15000);
-    }
-
     static class Calculate {
     }
 
@@ -36,28 +32,17 @@ public class PiAkka implements PiCalculator{
         }
     }
 
-    static class Result {
-        private final double value;
-
-        public Result(double value) {
-            this.value = value;
-        }
-
-        public double getValue() {
-            return value;
-        }
-    }
 
     static class PiApproximation {
-        private final double pi;
+        private final BigDecimal pi;
         private final Duration duration;
 
-        public PiApproximation(double pi, Duration duration) {
+        public PiApproximation(BigDecimal pi, Duration duration) {
             this.pi = pi;
             this.duration = duration;
         }
 
-        public double getPi() {
+        public BigDecimal getPi() {
             return pi;
         }
 
@@ -69,11 +54,12 @@ public class PiAkka implements PiCalculator{
 
     public static class Worker extends UntypedActor {
 
-        private double calculatePiFor(int start, int nrOfElements) {
-            double acc = 0.0;
+        private BigDecimal calculatePiFor(int start, int nrOfElements) {
+            BigDecimal acc = BigDecimal.ZERO;
             for (int i = start * nrOfElements; i <= ((start + 1) * nrOfElements - 1); i++) {
-                acc += 4.0 * (1 - (i % 2) * 2) / (2 * i + 1);
+                acc = acc.add(new BigDecimal(4.0 * (1 - (i % 2) * 2) / (2 * i + 1)));
             }
+
             return acc;
         }
 
@@ -81,8 +67,8 @@ public class PiAkka implements PiCalculator{
         public void onReceive(Object message) {
             if (message instanceof Work) {
                 Work work = (Work) message;
-                double result = calculatePiFor(work.getStart(), work.getNrOfElements());
-                getSender().tell(new Result(result), getSelf());
+                BigDecimal result = calculatePiFor(work.getStart(), work.getNrOfElements());
+                getSender().tell(result, getSelf());
             } else {
                 unhandled(message);
             }
@@ -94,7 +80,7 @@ public class PiAkka implements PiCalculator{
         private final int nrOfMessages;
         private final int nrOfElements;
 
-        private double pi;
+        private BigDecimal pi = BigDecimal.ZERO;
         private int nrOfResults;
         private final long start = System.currentTimeMillis();
 
@@ -115,9 +101,10 @@ public class PiAkka implements PiCalculator{
                 for (int start = 0; start < nrOfMessages; start++) {
                     workerRouter.tell(new Work(start, nrOfElements), getSelf());
                 }
-            } else if (message instanceof Result) {
-                Result result = (Result) message;
-                pi += result.getValue();
+            } else if (message instanceof BigDecimal) {
+
+                BigDecimal result = (BigDecimal) message;
+                pi = pi.add(result);
                 nrOfResults += 1;
                 if (nrOfResults == nrOfMessages) {
                     // Send the result to the listener

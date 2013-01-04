@@ -2,6 +2,8 @@ import org.agilewiki.jactor.*;
 import org.agilewiki.jactor.lpc.JLPCActor;
 import org.agilewiki.jactor.lpc.Request;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Random;
 
 /**
@@ -37,14 +39,14 @@ class Start extends Request<Object, Master> {
     public void processRequest(JLPCActor targetActor, final RP rp)
             throws Exception {
         Master a = (Master) targetActor;
-        RP<Result> prp = new RP<Result>() {
+        RP<BigDecimal> prp = new RP<BigDecimal>() {
             final long start = System.currentTimeMillis();
             boolean pending = true;
-            double pi = 0.0;
+            BigDecimal pi = BigDecimal.ZERO;
             int nrOfResults = 0;
 
-            public void processResponse(Result result) throws Exception {
-                pi += result.getValue();
+            public void processResponse(BigDecimal result) throws Exception {
+                pi = pi.add(result);
                 nrOfResults += 1;
                 if (nrOfResults == nrOfMessages) {
                     long duration = System.currentTimeMillis() - start;
@@ -53,7 +55,7 @@ class Start extends Request<Object, Master> {
                 }
             }
         };
-        a.calculate(nrOfElements, nrOfMessages, prp);
+        a.calculate(nrOfMessages,nrOfElements, prp);
     }
 
     public boolean isTargetType(Actor targetActor) {
@@ -74,19 +76,19 @@ class Master extends JLPCActor {
 
 
 class Worker extends JLPCActor {
-    public double calculatePiFor(int start, int nrOfElements) {
-        double acc = 0.0;
+    public BigDecimal calculatePiFor(int start, int nrOfElements) {
+        BigDecimal acc = BigDecimal.ZERO;
         for (int i = start * nrOfElements; i <= ((start + 1) * nrOfElements - 1); i++) {
-            acc += 4.0 * (1 - (i % 2) * 2) / (2 * i + 1);
+            acc = acc.add(new BigDecimal(4.0 * (1 - (i % 2) * 2) / (2 * i + 1)));
         }
         return acc;
     }
 }
 
 
-class Work extends Request<Result, Worker> {
-    private final int start;
-    private final int nrOfElements;
+class Work extends Request<BigDecimal, Worker> {
+    private int start;
+    private int nrOfElements;
 
     public Work(int start, int nrOfElements) {
         this.start = start;
@@ -102,22 +104,12 @@ class Work extends Request<Result, Worker> {
     @Override
     public void processRequest(JLPCActor targetActor, RP rp) throws Exception {
         Worker worker = (Worker) targetActor;
-        double result = ((Worker) targetActor).calculatePiFor(start, nrOfElements);
-        rp.processResponse(new Result(result));
+        BigDecimal result = ((Worker) targetActor).calculatePiFor(start, nrOfElements);
+        rp.processResponse(result);
     }
 }
 
-class Result{
-    private double value;
-    Result(double value){
-       this.value = value;
-    }
 
-    public double getValue(){
-           return value;
-    }
-
-}
 
 
 

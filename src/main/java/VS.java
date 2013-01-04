@@ -8,15 +8,15 @@ public class VS {
         PiAkka piAkka = new PiAkka();
         PijActor pijActor = new PijActor();
 
-        run(pijActor);
         run(piAkka);
         run(pijActor);
-        run(piAkka);    }
+
+    }
 
     static void run(PiCalculator picalc) throws Exception {
         int nrOfWorkers = 5;
-        int nrOfElements = 30000;
-        int nrOfMessages = 30000;
+        int nrOfElements = 100;
+        int nrOfMessages = 1000;
 
         run(nrOfWorkers, nrOfElements, nrOfMessages, picalc);
     }
