@@ -15,16 +15,15 @@ import org.agilewiki.jactor.apc.APCRequestSource
  * Time: 17:32
  * To change this template use File | Settings | File Templates.
  */
-public abstract class Actor<reified REQUEST_TYPE, reified RESPONSE_TYPE>(val mailb: Mailbox): JLPCActor() {
-    val actor = this
+public abstract class Actor<reified REQUEST_TYPE, reified RESPONSE_TYPE>(val _mailbox: Mailbox): JLPCActor() {
     {
-        this.initialize(mailb)
+        this.initialize(_mailbox)
     }
 
     val req = object : Request<RESPONSE_TYPE, JLPCActor>(){
         public override fun isTargetType(targetActor: org.agilewiki.jactor.Actor?) = true
         public override fun processRequest(targetActor: JLPCActor?, rp: RP<out Any?>?) {
-             actor.processRequest(rp as RP<REQUEST_TYPE>)
+             this@Actor.processRequest(rp as RP<REQUEST_TYPE>)
         }
     }
 
@@ -32,8 +31,8 @@ public abstract class Actor<reified REQUEST_TYPE, reified RESPONSE_TYPE>(val mai
         return req.send(future, this)
     }
 
-    public fun send(requestSource : APCRequestSource,rp :  RP<RESPONSE_TYPE> ){
-         req.send(requestSource, this, rp);
+    public fun send(requestSource : APCRequestSource,response :  RP<RESPONSE_TYPE> ){
+         req.send(requestSource, this, response);
     }
 
     protected abstract fun processRequest(rp : RP<REQUEST_TYPE>);
