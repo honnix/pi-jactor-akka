@@ -10,7 +10,9 @@ import java.math.BigDecimal;
 import java.util.concurrent.TimeUnit;
 
 
-public class PiAkka implements PiCalculator{
+public class PiAkka implements PiCalculator {
+    private static Object obj = new Object();
+
     static class Calculate {
     }
 
@@ -82,7 +84,7 @@ public class PiAkka implements PiCalculator{
 
         private BigDecimal pi = BigDecimal.ZERO;
         private int nrOfResults;
-        private final long start = System.currentTimeMillis();
+        private long start;
 
         private final ActorRef listener;
         private final ActorRef workerRouter;
@@ -92,8 +94,11 @@ public class PiAkka implements PiCalculator{
             this.nrOfElements = nrOfElements;
             this.listener = listener;
 
-            workerRouter = this.getContext().actorOf(new Props(Worker.class).withRouter(new RoundRobinRouter(nrOfWorkers)),
+            workerRouter = this.getContext().actorOf(new Props(Worker.class).withRouter(new RoundRobinRouter
+                    (nrOfWorkers)).withDispatcher("akka.actor" +
+                    ".my-thread-pool-dispatcher"),
                     "workerRouter");
+            start = System.currentTimeMillis();
         }
 
         public void onReceive(Object message) {
@@ -127,6 +132,9 @@ public class PiAkka implements PiCalculator{
                 System.out.println(String.format("\tPi approximation: \t\t%s\n\tCalculation time: \t%s",
                         approximation.getPi(), approximation.getDuration()));
                 getContext().system().shutdown();
+                synchronized (obj) {
+                    obj.notify();
+                }
             } else {
                 unhandled(message);
             }
@@ -135,22 +143,29 @@ public class PiAkka implements PiCalculator{
 
 
     public void calculate(final int nrOfWorkers, final int nrOfElements, final int nrOfMessages) {
-        System.out.println("AKKA - calc - ("+nrOfWorkers+","+nrOfElements+","+nrOfMessages+")");
+        System.out.println("AKKA - calc - (" + nrOfWorkers + "," + nrOfElements + "," + nrOfMessages + ")");
         // Create an Akka system
         ActorSystem system = ActorSystem.create("PiSystem");
 
         // create the result listener, which will print the result and shutdown the system
-        final ActorRef listener = system.actorOf(new Props(Listener.class), "listener");
+        final ActorRef listener = system.actorOf(new Props(Listener.class).withDispatcher("akka.actor" +
+                ".my-thread-pool-dispatcher"), "listener");
 
         // create the master
         ActorRef master = system.actorOf(new Props(new UntypedActorFactory() {
             public UntypedActor create() {
                 return new Master(nrOfWorkers, nrOfMessages, nrOfElements, listener);
             }
-        }), "master");
+        }).withDispatcher("akka.actor.my-thread-pool-dispatcher"), "master");
 
         // start the calculation
         master.tell(new Calculate());
-        while(!listener.isTerminated());
+        synchronized (obj) {
+            try {
+                obj.wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            }
+        }
     }
 }
