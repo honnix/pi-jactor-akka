@@ -156,7 +156,7 @@ public class PiAkka implements PiCalculator {
             public UntypedActor create() {
                 return new Master(nrOfWorkers, nrOfMessages, nrOfElements, listener);
             }
-        }).withDispatcher("akka.actor.my-thread-pool-dispatcher"), "master");
+        }), "master");
 
         // start the calculation
         master.tell(new Calculate());
